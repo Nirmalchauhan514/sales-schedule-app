@@ -1,22 +1,21 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 import pandas as pd
 from datetime import datetime
-from pathlib import Path
 
 st.set_page_config(page_title="Sales Schedule", layout="wide")
 
-# --- Locate service_account.json in same folder ---
-json_path = Path(__file__).parent / "service_account.json"
-if not json_path.exists():
-    st.error(f"service_account.json not found at: {json_path}\nPut the JSON key file in the same folder as app.py.")
-    st.stop()
-
-# --- Google Sheets auth ---
+# --- Google Sheets auth using Streamlit secrets ---
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-creds = ServiceAccountCredentials.from_json_keyfile_name(str(json_path), scope)
-client = gspread.authorize(creds)
+
+try:
+    credentials = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=scope)
+    client = gspread.authorize(credentials)
+except Exception as e:
+    st.error("Failed to authorize with Google Sheets API. Check your Streamlit secrets and credentials.")
+    st.write(e)
+    st.stop()
 
 # --- Open sheet ---
 SHEET_NAME = "Sales_Schedule"
@@ -81,7 +80,7 @@ st.markdown("---")
 st.subheader("📊 Manager View (Restricted)")
 
 manager_password = st.text_input("Enter Manager Password", type="password")
-if manager_password == "admin123":  # Change this password
+if manager_password == "admin123":  # Change this password as needed
     try:
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
